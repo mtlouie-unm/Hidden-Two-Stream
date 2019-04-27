@@ -1,4 +1,0 @@
-#!/bin/bash
-
-cp models/ucf101_split1_unsup_end/ucf101_rgb_train_split_1.txt models/ucf101_split1_unsup_end/train_rgb_split1.txt
-cp models/ucf101_split1_unsup_end/ucf101_rgb_val_split_1.txt models/ucf101_split1_unsup_end/val_rgb_split1.txt

@@ -6,10 +6,8 @@
 #define CAFFE_FILLER_HPP
 
 #include <string>
-#include <fstream>
 
 #include "caffe/blob.hpp"
-#include "caffe/common.hpp"
 #include "caffe/proto/caffe.pb.h"
 #include "caffe/syncedmem.hpp"
 #include "caffe/util/math_functions.hpp"
@@ -27,82 +25,6 @@ class Filler {
   FillerParameter filler_param_;
 };  // class Filler
 
-/**
- * @brief Fills out a mask to ignore borders
- */
-template <typename Dtype>
-class FlowBorderMaskFiller : public Filler<Dtype> {
- public:
-  explicit FlowBorderMaskFiller(const FillerParameter& param)
-      : Filler<Dtype>(param) {}
-  virtual void Fill(Blob<Dtype>* blob) {
-    int N = blob->shape(0);
-    int C = blob->shape(1);
-    int H = blob->shape(2);
-    int W = blob->shape(3);
-
-    CHECK_EQ(2, C) << "There should be 2 channels";
-
-    Dtype* blobData = blob->mutable_cpu_data();
-    int eleCount = blob->count();
-    caffe_set(eleCount,(Dtype)1,blobData);
-
-    for(int n=0;n<N;n++){
-      Dtype* chan1 = &blobData[blob->offset(n,1,H-1,0)];
-
-      caffe_set(W,(Dtype)0,chan1);
-
-      for(int h=0;h<H;h++){
-        blobData[blob->offset(n,0,h,W-1)] = 0;
-      }
-    }
-  }
-};
-
-template <typename Dtype>
-class BorderMaskFiller : public Filler<Dtype> {
- public:
-  explicit BorderMaskFiller(const FillerParameter& param)
-      : Filler<Dtype>(param) {}
-  virtual void Fill(Blob<Dtype>* blob) {
-    int N = blob->shape(0);
-    int C = blob->shape(1);
-    int H = blob->shape(2);
-    int W = blob->shape(3);
-
-    CHECK(this->filler_param_.has_border_ratio());
-    float ratio = this->filler_param_.border_ratio();
-    int shortest_dim;
-    if(H < W){
-      shortest_dim = H;
-    }
-    else{
-      shortest_dim = W;
-    }
-    int borderWidth = round(((float)shortest_dim)*ratio);
-
-    Dtype* blobData = blob->mutable_cpu_data();
-    int eleCount = blob->count();
-    caffe_set(eleCount,(Dtype)1,blobData);
-
-    for(int n=0;n<N;n++){
-      for(int c=0;c<C;c++){
-        for (int b=0;b<borderWidth;b++){
-          Dtype* u = &blobData[blob->offset(n,c,0+b,0)];
-          Dtype* d = &blobData[blob->offset(n,c,H-1-b,0)];
-
-          caffe_set(W,(Dtype)0,u);
-          caffe_set(W,(Dtype)0,d);
-
-          for(int h=0;h<H;h++){
-            blobData[blob->offset(n,c,h,0+b)] = 0;
-            blobData[blob->offset(n,c,h,W-1-b)] = 0;
-          }
-        }
-      }
-    }
-  }
-};
 
 /// @brief Fills a Blob with constant values @f$ x = 0 @f$.
 template <typename Dtype>
@@ -340,65 +262,6 @@ class BilinearFiller : public Filler<Dtype> {
 };
 
 /**
- * @brief Use file to initialize the weights or bias
- */
-template <typename Dtype>
-class FileFiller : public Filler<Dtype> {
- public:
-  explicit FileFiller(const FillerParameter& param)
-      : Filler<Dtype>(param) {}
-  virtual void Fill(Blob<Dtype>* blob) {
-    CHECK(this->filler_param_.has_file());
-    std::ifstream file(this->filler_param_.file().c_str());
-    Dtype* data = blob->mutable_cpu_data();
-    int count = blob->count();
-    Dtype temp;
-
-    CHECK_EQ(file.is_open(), true) << "File Filler could not open: " << this->filler_param_.file().c_str();
-
-    LOG(INFO) << "File filler has " << count << " elements to set" << std::endl;
-    for(int i=0; i<count; ++i) {
-      CHECK_EQ(file.eof(),false) << "File Filler reached EOF before done filling: " << this->filler_param_.file().c_str();
-
-      file >> temp;
-      data[i] = temp;
-      LOG(INFO) << "Setting " << i << "th position to " << temp << std::endl;
-    }
-    CHECK_EQ(this->filler_param_.sparse(), -1)
-             << "Sparsity not supported by this Filler.";
-  }
-};
-
-
-template <typename Dtype>
-class DiagonalFiller : public Filler<Dtype> {
- public:
-  explicit DiagonalFiller(const FillerParameter& param)
-      : Filler<Dtype>(param) {}
-  virtual void Fill(Blob<Dtype>* blob) {
-    CHECK(blob->count());
-    Dtype* blob_data = blob->mutable_cpu_data();
-    caffe_set(blob->count(), Dtype(0), blob_data);
-    
-    int kernel_area = static_cast<Dtype>(blob->height()*blob->width());
-    int channels = blob->channels();    
-    int num = blob->num();
-    
-    for (int n=0; n < num && n < channels; ++n) {
-      Dtype curr_val;
-      if (this->filler_param_.diag_val_size() > n)
-        curr_val = this->filler_param_.diag_val(n);
-      else
-        curr_val = 1;
-      curr_val /= static_cast<Dtype>(kernel_area);
-      caffe_set(kernel_area, curr_val, blob_data + kernel_area * (channels * n + n));
-    }
-    CHECK_EQ(this->filler_param_.sparse(), -1)
-         << "Sparsity not supported by this Filler.";
-  }
-};
-
-/**
  * @brief Get a specific filler from the specification given in FillerParameter.
  *
  * Ideally this would be replaced by a factory pattern, but we will leave it
@@ -419,22 +282,13 @@ Filler<Dtype>* GetFiller(const FillerParameter& param) {
     return new XavierFiller<Dtype>(param);
   } else if (type == "msra") {
     return new MSRAFiller<Dtype>(param);
-  } else if (type == "file") {
-    return new FileFiller<Dtype>(param);
   } else if (type == "bilinear") {
     return new BilinearFiller<Dtype>(param);
-  } else if (type == "diagonal") {
-    return new DiagonalFiller<Dtype>(param);
-  } else if (type == "flowBorderMask") {
-  return new FlowBorderMaskFiller<Dtype>(param);
-  } else if (type == "borderMask") {
-  return new BorderMaskFiller<Dtype>(param);
   } else {
     CHECK(false) << "Unknown filler name: " << param.type();
   }
   return (Filler<Dtype>*)(NULL);
 }
-
 
 }  // namespace caffe
 
