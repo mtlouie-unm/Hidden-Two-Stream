@@ -348,7 +348,7 @@ bool ReadSegmentRGBFlowToDatum(const string& filename1, const string& filename2,
   cv::Mat cv_img_x, cv_img_y;    // for flow images, two channel   
   string* datum_string;
   // You can define your own name pattern to match the name of your images and load the data.
-  string rgb_name_pattern = "img_%04d.jpg";
+  string rgb_name_pattern = "img_%05d.jpg";
   string flow_name_pattern = "flow_%c_%04d.jpg";
   char tmp[30];
   
@@ -437,7 +437,7 @@ bool ReadSegmentMultiRGBToDatum(const string& filename, const int label,
   cv::Mat cv_img;    // for RGB image
   string* datum_string;
   // You can define your own name pattern to match the name of your images and load the data.
-  string rgb_name_pattern = "img_%04d.jpg";
+  string rgb_name_pattern = "img_%05d.jpg";
   char tmp[30];
   
   for (int i = 0; i < offsets.size(); ++i){
