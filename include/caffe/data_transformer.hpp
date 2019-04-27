@@ -37,6 +37,12 @@ class DataTransformer {
    */
   void Transform(const Datum& datum, Blob<Dtype>* transformed_blob);
 
+  // void TransformEither(const Datum& datum, Blob<Dtype>* transformed_blob);
+
+  void TransformRgbFlow(const Datum& datum, Blob<Dtype>* transformed_blob);
+
+  void TransformMultiFrame(const Datum& datum, Blob<Dtype>* transformed_blob);
+
   /**
    * @brief Applies the transformation defined in the data layer's
    * transform_param block to a vector of Datum.
@@ -147,6 +153,9 @@ class DataTransformer {
   Phase phase_;
   Blob<Dtype> data_mean_;
   vector<Dtype> mean_values_;
+
+  vector<float> custom_scale_ratios_;
+  int max_distort_;
 };
 
 }  // namespace caffe
